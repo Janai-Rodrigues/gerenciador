@@ -407,35 +407,52 @@
                 }
             }
             
-            function generateVideoThumbnail(videoUrl, container) {
+function generateVideoThumbnail(videoUrl, container) {
                 const video = document.createElement('video');
                 video.src = videoUrl;
                 video.muted = true;
                 video.crossOrigin = "anonymous";
+                video.preload = "metadata"; // Apenas carrega os metadados inicialmente
 
-                video.addEventListener('loadeddata', () => {
-                    video.currentTime = 1; // Pega o frame em 1 segundo
+                // Evento que dispara quando o navegador pode começar a tocar o vídeo
+                video.addEventListener('canplay', () => {
+                    // Define o tempo para 1 segundo para capturar o frame
+                    video.currentTime = 1;
                 });
 
+                // Evento que dispara APÓS a busca (seek) para um novo tempo ser concluída
                 video.addEventListener('seeked', () => {
                     const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     
-                    container.innerHTML = ''; // Limpa qualquer conteúdo anterior
-                    container.appendChild(canvas);
-                    
-                    const playIcon = document.createElement('div');
-                    playIcon.className = 'video-play-icon';
-                    playIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>`;
-                    container.appendChild(playIcon);
-                    
-                    URL.revokeObjectURL(video.src); // Libera memória
+                    // Garante que temos dimensões válidas
+                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                        container.innerHTML = ''; // Limpa o container
+                        container.appendChild(canvas); // Adiciona a miniatura
+
+                        const playIcon = document.createElement('div');
+                        playIcon.className = 'video-play-icon';
+                        playIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>`;
+                        container.appendChild(playIcon);
+
+                        // Importante: Libera o objeto de vídeo da memória
+                        URL.revokeObjectURL(video.src);
+                    } else {
+                        // Caso de falha (ex: vídeo corrompido)
+                        console.warn("Não foi possível obter dimensões do vídeo para gerar thumbnail:", videoUrl);
+                    }
+                }, { once: true }); // Garante que este evento só dispare uma vez por vídeo
+
+                video.addEventListener('error', (e) => {
+                    console.error("Erro ao carregar o vídeo para gerar thumbnail:", e);
+                    // Você pode adicionar um ícone de erro aqui se quiser
                 });
 
-                video.load();
+                video.load(); // Inicia o carregamento do vídeo
             }
 
 
@@ -513,3 +530,4 @@
 </body>
 
 </html>
+
