@@ -1,21 +1,427 @@
-{
-  "name": "Gerenciador de Arquivos",
-  "short_name": "Arquivos",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#1a1a1a",
-  "theme_color": "#2a2a2a",
-  "description": "Um simples gerenciador de arquivos web.",
-  "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gerenciador de Arquivos</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2a2a2a"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Arquivos">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --primary-color: #2a2a2a;
+            --secondary-color: #3f3f3f;
+            --text-color: #e0e0e0;
+            --accent-color: #007bff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overscroll-behavior: contain;
+        }
+
+        .container {
+            padding: 15px;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            padding: 20px 15px;
+            text-align: center;
+            border-bottom: 1px solid var(--secondary-color);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+        }
+
+        #folder-selector {
+            padding: 15px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        
+        #folder-selector input {
+            display: none;
+        }
+
+        #file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            padding-top: 20px;
+        }
+
+        .file-item {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .file-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .file-item .icon {
+            font-size: 3rem;
+            color: var(--text-color);
+        }
+
+        .file-item .video-icon {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            color: white;
+            background-color: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            padding: 4px;
+            font-size: 0.8rem;
+        }
+        
+        #status-message {
+            text-align: center;
+            margin-top: 30px;
+            color: #888;
+        }
+
+        /* --- Estilos do Modal --- */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2.5rem;
+            color: white;
+            cursor: pointer;
+            z-index: 1010;
+            background: rgba(0,0,0,0.4);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+        }
+        
+        /* Modal de Imagem */
+        #image-viewer img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Modal de Vídeo */
+        #video-viewer {
+            width: 100%;
+            height: 100%;
+        }
+
+        #video-player {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+        }
+
+        #video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 15px 20px 25px 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #video-controls .main-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            width: 100%;
+        }
+
+        #video-controls button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            cursor: pointer;
+        }
+        
+        #play-pause-btn {
+            font-size: 2.5rem;
+        }
+
+        #seek-slider {
+            width: 100%;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+        
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.8rem;
+            margin-top: -10px;
+            padding: 0 5px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Gerenciador de Arquivos</h1>
+            <label id="folder-selector">
+                📂 Selecionar Pasta
+                <input type="file" id="file-input" webkitdirectory multiple>
+            </label>
+        </header>
+
+        <main>
+            <div id="file-grid"></div>
+            <p id="status-message">Selecione uma pasta para visualizar os arquivos.</p>
+        </main>
+    </div>
+
+    <div id="image-viewer" class="modal">
+        <span class="close-btn">&times;</span>
+        <img id="modal-image" src="" alt="Imagem em tela cheia">
+    </div>
+
+    <div id="video-viewer" class="modal">
+        <span class="close-btn">&times;</span>
+        <video id="video-player" playsinline></video>
+        <div id="video-controls">
+            <input type="range" id="seek-slider" value="0" step="0.1">
+            <div class="time-display">
+                <span id="current-time">00:00</span>
+                <span id="duration">00:00</span>
+            </div>
+            <div class="main-controls">
+                <button id="prev-btn">⏮</button>
+                <button id="play-pause-btn">▶️</button>
+                <button id="next-btn">⏭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Service Worker Registration for PWA ---
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registrado com sucesso!', reg))
+                    .catch(err => console.error('Falha ao registrar Service Worker:', err));
+            }
+
+            // --- DOM Elements ---
+            const fileInput = document.getElementById('file-input');
+            const fileGrid = document.getElementById('file-grid');
+            const statusMessage = document.getElementById('status-message');
+            
+            // Image Modal
+            const imageViewer = document.getElementById('image-viewer');
+            const modalImage = document.getElementById('modal-image');
+            
+            // Video Modal
+            const videoViewer = document.getElementById('video-viewer');
+            const videoPlayer = document.getElementById('video-player');
+            const videoControls = document.getElementById('video-controls');
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const seekSlider = document.getElementById('seek-slider');
+            const currentTimeEl = document.getElementById('current-time');
+            const durationEl = document.getElementById('duration');
+
+            // --- State Management ---
+            let imageFiles = [];
+            let videoFiles = [];
+            let currentVideoIndex = -1;
+
+            // --- Event Listeners ---
+            fileInput.addEventListener('change', handleFileSelection);
+            imageViewer.querySelector('.close-btn').addEventListener('click', () => imageViewer.classList.remove('active'));
+            videoViewer.querySelector('.close-btn').addEventListener('click', closeVideoPlayer);
+            
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            videoPlayer.addEventListener('timeupdate', updateSeekSlider);
+            videoPlayer.addEventListener('loadedmetadata', initializeSlider);
+            seekSlider.addEventListener('input', () => videoPlayer.currentTime = seekSlider.value);
+            prevBtn.addEventListener('click', playPreviousVideo);
+            nextBtn.addEventListener('click', playNextVideo);
+            videoPlayer.addEventListener('ended', playNextVideo);
+
+            // --- Functions ---
+            function handleFileSelection(event) {
+                const files = event.target.files;
+                if (files.length === 0) return;
+
+                // Reset state
+                fileGrid.innerHTML = '';
+                imageFiles = [];
+                videoFiles = [];
+                statusMessage.style.display = 'none';
+
+                const sortedFiles = Array.from(files).sort((a, b) => a.name.localeCompare(b.name));
+
+                sortedFiles.forEach(file => {
+                    const fileType = getFileType(file.name);
+                    const objectURL = URL.createObjectURL(file);
+
+                    if (fileType === 'image') {
+                        imageFiles.push({ file, url: objectURL });
+                        const item = createGridItem(objectURL, 'image', imageFiles.length - 1);
+                        fileGrid.appendChild(item);
+                    } else if (fileType === 'video') {
+                        videoFiles.push({ file, url: objectURL });
+                        const item = createGridItem(objectURL, 'video', videoFiles.length - 1);
+                        fileGrid.appendChild(item);
+                    }
+                });
+            }
+
+            function getFileType(fileName) {
+                const extension = fileName.split('.').pop().toLowerCase();
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+                const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'mkv'];
+
+                if (imageExtensions.includes(extension)) return 'image';
+                if (videoExtensions.includes(extension)) return 'video';
+                return 'other';
+            }
+
+            function createGridItem(url, type, index) {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                
+                if (type === 'image') {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.loading = 'lazy';
+                    item.appendChild(img);
+                    item.addEventListener('click', () => openImageViewer(url));
+                } else if (type === 'video') {
+                    item.innerHTML = `
+                        <span class="icon">🎬</span>
+                        <span class="video-icon">▶</span>
+                    `;
+                    item.addEventListener('click', () => openVideoPlayer(index));
+                }
+                return item;
+            }
+
+            function openImageViewer(url) {
+                modalImage.src = url;
+                imageViewer.classList.add('active');
+            }
+            
+            // --- Video Player Logic ---
+            function openVideoPlayer(index) {
+                currentVideoIndex = index;
+                videoPlayer.src = videoFiles[index].url;
+                videoViewer.classList.add('active');
+                videoPlayer.play();
+                playPauseBtn.textContent = '⏸️';
+            }
+            
+            function closeVideoPlayer() {
+                videoPlayer.pause();
+                videoPlayer.src = ''; // Libera o recurso
+                videoViewer.classList.remove('active');
+            }
+
+            function togglePlayPause() {
+                if (videoPlayer.paused) {
+                    videoPlayer.play();
+                    playPauseBtn.textContent = '⏸️';
+                } else {
+                    videoPlayer.pause();
+                    playPauseBtn.textContent = '▶️';
+                }
+            }
+            
+            function playNextVideo() {
+                if (videoFiles.length > 0) {
+                    currentVideoIndex = (currentVideoIndex + 1) % videoFiles.length;
+                    openVideoPlayer(currentVideoIndex);
+                }
+            }
+
+            function playPreviousVideo() {
+                 if (videoFiles.length > 0) {
+                    currentVideoIndex = (currentVideoIndex - 1 + videoFiles.length) % videoFiles.length;
+                    openVideoPlayer(currentVideoIndex);
+                }
+            }
+
+            function initializeSlider() {
+                seekSlider.max = videoPlayer.duration;
+                durationEl.textContent = formatTime(videoPlayer.duration);
+            }
+            
+            function updateSeekSlider() {
+                seekSlider.value = videoPlayer.currentTime;
+                currentTimeEl.textContent = formatTime(videoPlayer.currentTime);
+            }
+
+            function formatTime(time) {
+                const minutes = Math.floor(time / 60);
+                const seconds = Math.floor(time % 60);
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+        });
+    </script>
+</body>
+</html>
